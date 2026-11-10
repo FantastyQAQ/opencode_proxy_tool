@@ -5,6 +5,9 @@ object_script.*
 *.pro.user
 *.pro.user.*
 
+# ---- 构建输出目录（产物与运行依赖不进仓库） ----
+/release/
+
 # ---- 编译中间产物 ----
 *.o
 *.obj
