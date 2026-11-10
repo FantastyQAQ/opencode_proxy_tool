@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  应用程序清单（RT_MANIFEST），由 opencode_proxy_tool_resource.rc 以资源 ID 1 编入 exe。
+
+  作用：
+    1. requestedExecutionLevel 声明 asInvoker。只要清单里出现了 requestedExecutionLevel，
+       系统就不再对进程做「安装程序检测」启发式判断，退出时不会弹出「程序兼容性助手」
+       的「可能未正确安装此程序」提示框。
+    2. compatibility 段声明支持的 Windows 版本，避免系统按兼容模式（老版本行为）运行。
+
+  注意：这里刻意不声明 dpiAware / dpiAwareness。Qt 5.12 在高 DPI 下由自身按
+  Qt::AA_EnableHighDpiScaling 逻辑缩放，若在此处强行声明 PerMonitorV2，
+  会出现界面字体与控件尺寸错乱，故保持默认（系统 DPI 虚拟化）。
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+
+  <!-- 程序集标识：名称与版本仅用于清单自身校验，不参与 exe 属性显示 -->
+  <assemblyIdentity
+      type="win32"
+      name="lch.opencode_proxy_tool"
+      version="1.0.0.0"
+      processorArchitecture="*" />
+
+  <!-- 执行级别：普通用户权限启动（不触发 UAC），同时关闭安装程序检测 -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!-- 兼容性：声明支持的 Windows Vista 至 Windows 10/11，避免落到兼容层 -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows Vista -->
+      <supportedOS Id="{e2011457-1546-43c5-a5fe-008deee3d3f0}" />
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}" />
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}" />
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}" />
+      <!-- Windows 10 / 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+
+</assembly>

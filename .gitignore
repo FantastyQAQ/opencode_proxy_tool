@@ -1,0 +1,22 @@
+# ---- qmake 生成物 ----
+Makefile
+.qmake.stash
+object_script.*
+*.pro.user
+*.pro.user.*
+
+# ---- 编译中间产物 ----
+*.o
+*.obj
+moc_*.cpp
+moc_*.h
+moc_predefs.h
+qrc_*.cpp
+ui_*.h
+
+# ---- 系统/编辑器杂项 ----
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+*~
