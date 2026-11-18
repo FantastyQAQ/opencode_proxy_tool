@@ -17,6 +17,17 @@ moc_predefs.h
 qrc_*.cpp
 ui_*.h
 
+# ---- IDE / AI 工具目录（本机配置与助手产物，整目录不入库） ----
+.vscode/
+.idea/
+.trae/
+.codebuddy/
+.workbuddy/
+.cursor/
+.claude/
+.qoder/
+.qoder-credits/
+
 # ---- 系统/编辑器杂项 ----
 Thumbs.db
 desktop.ini
