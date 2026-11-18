@@ -1,5 +1,5 @@
 /**
- * @file proxymanager.h
+ * @file proxy_manager.h
  * @brief 代理管理器声明：定位 CLI、探测代理、写环境变量、重启服务、三层验证
  */
 
@@ -13,7 +13,7 @@
 
 #include <atomic>
 
-#include "proxydetector.h"
+#include "proxy_detector.h"
 
 /// @brief 代理管理器：把 opencode_proxy.py 的主流程移植为 C++，整个对象跑在工作线程里
 class ProxyManager : public QObject
@@ -30,7 +30,7 @@ public:
     Q_INVOKABLE void set_cli(const QString &path);
 
     /// @brief 当前 opencode 可执行文件路径（空串 = 尚未定位）
-    QString cli() const;
+    QString get_cli() const;
 
     /// @brief 请求中止当前流水线（只置原子标志，不阻塞）
     void request_abort();
@@ -54,19 +54,19 @@ signals:
     void log_message(const QString &text, const QColor &color);
 
     /// @brief 探测结果（首个为选用项，其余为备选）
-    void detected(const QList<ProxyDetector::Proxy> &proxies);
+    void proxy_detected(const QList<ProxyDetector::Proxy> &proxies);
 
     /// @brief 单个配置项的写入状态（value 已脱敏）
     void env_state_changed(const QString &key, const QString &value, bool ok);
 
     /// @brief 单条验证结果
-    void verify_result(const QString &name, bool ok, const QString &detail);
+    void verify_result_ready(const QString &name, bool ok, const QString &detail);
 
     /// @brief 整条流水线结束（ok = 是否整体成功）
     void finished(bool ok);
 
     /// @brief check_state() 的实测结果
-    void proxy_state(bool configured);
+    void proxy_state_changed(bool configured);
 
 private:
     // ---- 流水线步骤 ----
@@ -99,9 +99,9 @@ private:
 
     // ---- 辅助 ----
     /// @brief 查询是否已请求中止
-    bool aborted() const;
+    bool check_aborted() const;
     /// @brief 发一条带颜色的日志
-    void log(const QString &text, const QColor &color);
+    void append_log_message(const QString &text, const QColor &color);
     /// @brief 上报单个配置项的写入状态（表格 + 日志）
     void report_env(const QString &key, const QString &value, bool ok);
 

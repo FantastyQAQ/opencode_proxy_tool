@@ -1,5 +1,5 @@
 /**
- * @file        proxydetector.cpp
+ * @file        proxy_detector.cpp
  * @brief       代理探测器实现：CONNECT 隧道探测 / 监听端口解析 / 候选发现
  * @author      lch (fantasylch@foxmail.com)
  * @version     1.0
@@ -16,7 +16,7 @@
  * </table>
  */
 
-#include "proxydetector.h"
+#include "proxy_detector.h"
 
 #include <QProcess>
 #include <QRegularExpression>
@@ -253,9 +253,9 @@ bool ProxyDetector::probe(const QString &scheme, const QString &host, int port,
  *              只保留 127.0.0.1 / 0.0.0.0 / [::] / [::1] / ::1 上的端口，其余地址（真实网卡 IP）跳过，
  *              避免把局域网服务当成候选代理。
  *              用 QSet 去重并按出现顺序入列；进程起不来或超时返回空表，不报错、不阻塞调用方。
- * @doxygen_sig_fp 2b14de49f9452e76
+ * @doxygen_sig_fp a6b07bf91079a3cc
  */
-QList<int> ProxyDetector::listening_ports(int timeoutMs)
+QList<int> ProxyDetector::get_listening_ports(int timeoutMs)
 {
     QList<int> ports;
 
@@ -332,7 +332,7 @@ void ProxyDetector::try_one(const QString &url, QList<Proxy> *tried, QList<Proxy
  * @brief       按候选顺序逐个真实探测，返回可用代理
  *
  * @param[in]   {explicitUrl} const QString& 显式代理地址（空 = 自动探测）
- * @param[in]   {livePorts} const QList<int>& listening_ports() 的结果
+ * @param[in]   {livePorts} const QList<int>& get_listening_ports() 的结果
  * @param[in]   {onProbe} const std::function<void(const QString&, bool)>& 每个候选探测后的回调，可为空
  * @return      全部通过探测的代理（首个为选用项，可能为空）
  * @details     显式地址：只探测它，不通就返回空，不回退到自动探测（用户指定了就不该被替换）。

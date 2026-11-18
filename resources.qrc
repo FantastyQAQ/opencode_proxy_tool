@@ -1,0 +1,6 @@
+<RCC>
+    <!-- 更新记录编进可执行文件，供「更新说明」窗口读取 :/docs/README.zh_CN.md -->
+    <qresource prefix="/docs">
+        <file alias="README.zh_CN.md">docs/README.zh_CN.md</file>
+    </qresource>
+</RCC>

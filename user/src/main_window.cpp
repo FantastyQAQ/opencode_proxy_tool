@@ -1,5 +1,5 @@
 /**
- * @file        mainwindow.cpp
+ * @file        main_window.cpp
  * @brief       主窗口实现：界面搭建 / QSS 主题 / 信号接线 / 忙态互斥
  * @author      lch (fantasylch@foxmail.com)
  * @version     1.0
@@ -15,7 +15,7 @@
  * </table>
  */
 
-#include "mainwindow.h"
+#include "main_window.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -43,11 +43,11 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
-#include "aboutdialog.h"
-#include "appinfo.h"
-#include "helpdialog.h"
-#include "proxydetector.h"
-#include "updatedialog.h"
+#include "about_dialog.h"
+#include "app_info.h"
+#include "help_dialog.h"
+#include "proxy_detector.h"
+#include "update_notes_dialog.h"
 
 // ===== 日志颜色常量（与参考工程一致的柔和色板）=====
 namespace {
@@ -78,7 +78,7 @@ const QList<int> kPortPresets = {17890, 7890, 7897, 7891, 10809, 10808, 1080, 10
  *                 UI 线程从此只通过信号拿结果；
  *              ③ setup_ui() 建界面，再连接 log_message / detected / env_state_changed / verify_result /
  *                 finished / proxy_state 六个信号，跨线程自动走队列连接；
- *              ④ CLI 输入框回填 m_manager->cli()；右下角先显示橙色「转发检测中…」再 trigger_state_check()
+ *              ④ CLI 输入框回填 m_manager->get_cli()；右下角先显示橙色「转发检测中…」再 trigger_state_check()
  *                 做首次实测；
  *              ⑤ 默认 1180x720，最小 860x520。
  * @doxygen_sig_fp 755a2b28c15df9d3
@@ -97,14 +97,14 @@ MainWindow::MainWindow(QWidget *parent)
     setup_ui();
 
     connect(m_manager, &ProxyManager::log_message, this, &MainWindow::on_log);
-    connect(m_manager, &ProxyManager::detected, this, &MainWindow::on_detected);
+    connect(m_manager, &ProxyManager::proxy_detected, this, &MainWindow::on_proxy_detected);
     connect(m_manager, &ProxyManager::env_state_changed, this, &MainWindow::on_env_state);
-    connect(m_manager, &ProxyManager::verify_result, this, &MainWindow::on_verify);
+    connect(m_manager, &ProxyManager::verify_result_ready, this, &MainWindow::on_verify);
     connect(m_manager, &ProxyManager::finished, this, &MainWindow::on_finished);
-    connect(m_manager, &ProxyManager::proxy_state, this, &MainWindow::on_proxy_state);
+    connect(m_manager, &ProxyManager::proxy_state_changed, this, &MainWindow::on_proxy_state_changed);
 
     m_summaryLabel->setText(QStringLiteral("就绪 — 点击「开始配置」自动探测并写入代理"));
-    m_cliEdit->setText(m_manager->cli());
+    m_cliEdit->setText(m_manager->get_cli());
     show_proxy_state(QStringLiteral("转发检测中…"), kColorWarn);
     trigger_state_check();
 
@@ -645,7 +645,7 @@ void MainWindow::show_proxy_state(const QString &text, const QColor &color)
  * @return      none
  * @details     先把指示切成橙色「转发检测中…」，再用 QMetaObject::invokeMethod 队列调用
  *              m_manager 的 check_state——不阻塞 UI 线程；
- *              结果经 proxy_state 信号回到 on_proxy_state 更新文案，全程不写日志。
+ *              结果经 proxy_state 信号回到 on_proxy_state_changed 更新文案，全程不写日志。
  * @doxygen_sig_fp fb0592759c66bc63
  */
 void MainWindow::trigger_state_check()
@@ -736,9 +736,9 @@ void MainWindow::on_run_timer()
  * @return      none
  * @details     已配置显示绿色「转发已配置」，未配置显示灰色「转发未配置」。
  *              只改这一个标签，不影响正在跑的流水线、也不动运行时长。
- * @doxygen_sig_fp 5113acb7290cabda
+ * @doxygen_sig_fp 4449b9bf44622941
  */
-void MainWindow::on_proxy_state(bool configured)
+void MainWindow::on_proxy_state_changed(bool configured)
 {
     show_proxy_state(configured ? QStringLiteral("转发已配置") : QStringLiteral("转发未配置"),
                      configured ? kColorOk : kColorDim);
@@ -961,16 +961,27 @@ void MainWindow::on_help()
 }
 
 /**
- * @brief       弹出「更新说明」对话框
+ * @brief       弹出「更新说明」窗口
  *
  * @return      none
- * @details     在栈上建 UpdateDialog 后 exec()，模态展示后自动释放。
+ * @details     非模态独立窗口：已存在则前置激活，关闭后由 WA_DeleteOnClose 释放并清空指针。
  * @doxygen_sig_fp 4bca556cc8a4d257
  */
 void MainWindow::on_updates()
 {
-    UpdateDialog dlg(this);
-    dlg.exec();
+    // 首次点击才创建，之后复用同一窗口（避免重复弹出多份）
+    if (!m_updateNotesWnd) {
+        m_updateNotesWnd = new UpdateNotesDialog(this);
+        m_updateNotesWnd->setAttribute(Qt::WA_DeleteOnClose);
+        // 关闭后清空指针，下次点击可重新创建
+        connect(m_updateNotesWnd, &QObject::destroyed, this, [this]() {
+            m_updateNotesWnd = nullptr;
+        });
+    }
+
+    m_updateNotesWnd->show();
+    m_updateNotesWnd->raise();
+    m_updateNotesWnd->activateWindow();
 }
 
 /**
@@ -1009,9 +1020,9 @@ void MainWindow::on_log(const QString &text, const QColor &color)
  * @details     首个标「代理（选用）」，其余标「代理（备选）」，最多显示 3 行，避免表格被候选刷屏。
  *              URL 经 mask_url 脱敏；状态列固定「隧道通过」绿色；说明列放 scheme://host:port，
  *              方便用户核对端口。
- * @doxygen_sig_fp 15ce0d5c4ecbf82a
+ * @doxygen_sig_fp 71cbccbc8aad3f38
  */
-void MainWindow::on_detected(const QList<ProxyDetector::Proxy> &proxies)
+void MainWindow::on_proxy_detected(const QList<ProxyDetector::Proxy> &proxies)
 {
     if (proxies.isEmpty())
         return;

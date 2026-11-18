@@ -1,5 +1,5 @@
 /**
- * @file        proxymanager.cpp
+ * @file        proxy_manager.cpp
  * @brief       代理管理器实现：定位 CLI、探测代理、写环境变量、重启服务、三层验证
  * @author      lch (fantasylch@foxmail.com)
  * @version     1.0
@@ -16,7 +16,7 @@
  * </table>
  */
 
-#include "proxymanager.h"
+#include "proxy_manager.h"
 
 #include <QDir>
 #include <QFile>
@@ -106,9 +106,9 @@ void ProxyManager::set_cli(const QString &path)
  *
  * @return      路径；空串表示尚未定位到
  * @details     只读访问，UI 线程在构造主窗口时用它回填输入框，此时工作线程尚未改动 m_cli。
- * @doxygen_sig_fp 707ff90630bc40a6
+ * @doxygen_sig_fp 915477a63cb564f5
  */
-QString ProxyManager::cli() const
+QString ProxyManager::get_cli() const
 {
     return m_cli;
 }
@@ -118,7 +118,7 @@ QString ProxyManager::cli() const
  *
  * @return      none
  * @details     只置原子标志，不做任何阻塞动作，可从 UI 线程直接调用。
- *              流水线在每个步骤开始前检查 aborted()，命中就收尾并发出 finished(false)；
+ *              流水线在每个步骤开始前检查 check_aborted()，命中就收尾并发出 finished(false)；
  *              当前正在执行的步骤（例如 service restart，最长 120 秒）无法中途打断。
  * @doxygen_sig_fp c5b4ffba0e193477
  */
@@ -132,9 +132,9 @@ void ProxyManager::request_abort()
  *
  * @return      true = 已请求中止
  * @details     原子读，供流水线各步骤在开始前判断是否要提前退出。
- * @doxygen_sig_fp 9f7cabb9147ca4b3
+ * @doxygen_sig_fp 1b04bf5a20b4885f
  */
-bool ProxyManager::aborted() const
+bool ProxyManager::check_aborted() const
 {
     return m_abort.load();
 }
@@ -148,7 +148,7 @@ bool ProxyManager::aborted() const
  *              ① find_cli(false) 定位 CLI 后跑 service get（10 秒超时），解析 JSON 的 env 对象，
  *                 任一 kProxyKeys 非空即视为已配置；
  *              ② 未命中时兜底查 HKCU\Environment 里的代理键（CLI 缺失或服务没起的情况）。
- *              结果经 proxy_state(bool) 信号发回 UI 线程，UI 只据此刷新右下角指示。
+ *              结果经 proxy_state_changed(bool) 信号发回 UI 线程，UI 只据此刷新右下角指示。
  * @doxygen_sig_fp f7ff96412e152f44
  */
 void ProxyManager::check_state()
@@ -181,7 +181,7 @@ void ProxyManager::check_state()
         }
     }
 
-    emit proxy_state(configured);
+    emit proxy_state_changed(configured);
 }
 
 /**
@@ -192,9 +192,9 @@ void ProxyManager::check_state()
  * @return      none
  * @details     只是 emit log_message 的薄封装，方便类内各处少写一次信号名。
  *              槽在 UI 线程（自动队列连接），跨线程调用是安全的。
- * @doxygen_sig_fp 2702d98ef5ca6d32
+ * @doxygen_sig_fp 9fd0c68a280a708f
  */
-void ProxyManager::log(const QString &text, const QColor &color)
+void ProxyManager::append_log_message(const QString &text, const QColor &color)
 {
     emit log_message(text, color);
 }
@@ -214,7 +214,7 @@ void ProxyManager::log(const QString &text, const QColor &color)
 void ProxyManager::report_env(const QString &key, const QString &value, bool ok)
 {
     emit env_state_changed(key, value, ok);
-    log(QStringLiteral("  %1 → %2").arg(key, value), ok ? kColorOk : kColorErr);
+    append_log_message(QStringLiteral("  %1 → %2").arg(key, value), ok ? kColorOk : kColorErr);
 }
 
 // ===== CLI 命令执行 =====
@@ -287,7 +287,7 @@ void ProxyManager::probe_only(const QString &explicitUrl)
     m_running = true;
     m_abort.store(false);
 
-    log(QStringLiteral("=== 探测可用本地代理 ==="), kColorInfo);
+    append_log_message(QStringLiteral("=== 探测可用本地代理 ==="), kColorInfo);
     if (!find_cli()) {
         m_running = false;
         emit finished(false);
@@ -297,16 +297,16 @@ void ProxyManager::probe_only(const QString &explicitUrl)
     QList<ProxyDetector::Proxy> found;
     if (do_detect(explicitUrl, &found) && !found.isEmpty()) {
         const ProxyDetector::Proxy &p = found.first();
-        log(QStringLiteral("  [OK] %1（%2://%3:%4）CONNECT 隧道通过")
+        append_log_message(QStringLiteral("  [OK] %1（%2://%3:%4）CONNECT 隧道通过")
                 .arg(ProxyDetector::mask_url(p.url), p.scheme, p.host)
                 .arg(p.port),
             kColorOk);
         for (int i = 1; i < found.size(); ++i)
-            log(QStringLiteral("  备选 %1").arg(ProxyDetector::mask_url(found.at(i).url)),
+            append_log_message(QStringLiteral("  备选 %1").arg(ProxyDetector::mask_url(found.at(i).url)),
                 kColorDim);
-        emit detected(found);
+        emit proxy_detected(found);
     } else {
-        log(QStringLiteral("  [FAIL] 没找到可用代理。确认 Clash/v2rayN 等已开启 HTTP 端口，或显式指定代理地址"),
+        append_log_message(QStringLiteral("  [FAIL] 没找到可用代理。确认 Clash/v2rayN 等已开启 HTTP 端口，或显式指定代理地址"),
             kColorErr);
     }
 
@@ -344,7 +344,7 @@ void ProxyManager::detect_and_apply(const QString &explicitUrl, const QString &c
     m_abort.store(false);
     bool ok = true;
 
-    log(QStringLiteral("=== OpenCode 本地代理配置 ==="), kColorInfo);
+    append_log_message(QStringLiteral("=== OpenCode 本地代理配置 ==="), kColorInfo);
 
     if (!find_cli()) {
         m_running = false;
@@ -354,58 +354,58 @@ void ProxyManager::detect_and_apply(const QString &explicitUrl, const QString &c
 
     QList<ProxyDetector::Proxy> found;
     if (!do_detect(explicitUrl, &found) || found.isEmpty()) {
-        log(QStringLiteral("  [FAIL] 没找到可用代理，未做任何修改。"), kColorErr);
-        log(QStringLiteral("  排查：代理软件是否开启「HTTP 代理 / 允许局域网」；端口是否被占用；或用显式地址指定。"),
+        append_log_message(QStringLiteral("  [FAIL] 没找到可用代理，未做任何修改。"), kColorErr);
+        append_log_message(QStringLiteral("  排查：代理软件是否开启「HTTP 代理 / 允许局域网」；端口是否被占用；或用显式地址指定。"),
             kColorDim);
         m_running = false;
         emit finished(false);
         return;
     }
     const QString proxyUrl = found.first().url;
-    log(QStringLiteral("  选用 %1").arg(ProxyDetector::mask_url(proxyUrl)), kColorOk);
+    append_log_message(QStringLiteral("  选用 %1").arg(ProxyDetector::mask_url(proxyUrl)), kColorOk);
     for (int i = 1; i < found.size(); ++i)
-        log(QStringLiteral("  备选 %1").arg(ProxyDetector::mask_url(found.at(i).url)), kColorDim);
-    emit detected(found);
+        append_log_message(QStringLiteral("  备选 %1").arg(ProxyDetector::mask_url(found.at(i).url)), kColorDim);
+    emit proxy_detected(found);
 
     if (!caPath.trimmed().isEmpty() && !QFileInfo::exists(caPath.trimmed())) {
-        log(QStringLiteral("  [FAIL] --ca 指定的文件不存在：%1").arg(caPath), kColorErr);
+        append_log_message(QStringLiteral("  [FAIL] --ca 指定的文件不存在：%1").arg(caPath), kColorErr);
         m_running = false;
         emit finished(false);
         return;
     }
 
-    if (aborted()) {
+    if (check_aborted()) {
         m_running = false;
         emit finished(false);
         return;
     }
 
-    log(QStringLiteral("=== 写入后台服务环境变量（持久化，重启后仍在）==="), kColorInfo);
+    append_log_message(QStringLiteral("=== 写入后台服务环境变量（持久化，重启后仍在）==="), kColorInfo);
     if (!apply_service_env(proxyUrl, caPath, dryRun))
         ok = false;
 
     if (userEnv) {
-        log(QStringLiteral("=== 写入用户级环境变量（让 CLI 与其它新开进程也走代理）==="), kColorInfo);
+        append_log_message(QStringLiteral("=== 写入用户级环境变量（让 CLI 与其它新开进程也走代理）==="), kColorInfo);
         if (!apply_user_env(proxyUrl, caPath, dryRun))
             ok = false;
     }
 
     if (restart) {
-        log(QStringLiteral("=== 重启后台服务使配置生效 ==="), kColorInfo);
+        append_log_message(QStringLiteral("=== 重启后台服务使配置生效 ==="), kColorInfo);
         if (!do_restart(dryRun))
             ok = false;
     }
 
     if (!dryRun) {
-        log(QStringLiteral("=== 验证 ==="), kColorInfo);
+        append_log_message(QStringLiteral("=== 验证 ==="), kColorInfo);
         do_verify();
     }
 
-    log(QStringLiteral("=== 完成 ==="), kColorInfo);
-    log(QStringLiteral("  代理：%1").arg(ProxyDetector::mask_url(proxyUrl)), kColorInfo);
-    log(QStringLiteral("  直连白名单：%1").arg(kNoProxyValue), kColorInfo);
-    log(QStringLiteral("  撤销：点「撤销代理」"), kColorInfo);
-    log(QStringLiteral("  提示：桌面版 OpenCode 若已在运行，完全退出再重开一次，它拉起的服务才会继承新环境。"),
+    append_log_message(QStringLiteral("=== 完成 ==="), kColorInfo);
+    append_log_message(QStringLiteral("  代理：%1").arg(ProxyDetector::mask_url(proxyUrl)), kColorInfo);
+    append_log_message(QStringLiteral("  直连白名单：%1").arg(kNoProxyValue), kColorInfo);
+    append_log_message(QStringLiteral("  撤销：点「撤销代理」"), kColorInfo);
+    append_log_message(QStringLiteral("  提示：桌面版 OpenCode 若已在运行，完全退出再重开一次，它拉起的服务才会继承新环境。"),
         kColorDim);
 
     m_running = false;
@@ -432,11 +432,11 @@ void ProxyManager::detect_and_apply(const QString &explicitUrl, const QString &c
 bool ProxyManager::find_cli(bool verbose)
 {
     if (verbose)
-        log(QStringLiteral("定位 opencode CLI…"), kColorInfo);
+        append_log_message(QStringLiteral("定位 opencode CLI…"), kColorInfo);
 
     if (!m_cli.isEmpty() && QFileInfo::exists(m_cli)) {
         if (verbose)
-            log(QStringLiteral("  [OK] %1").arg(m_cli), kColorOk);
+            append_log_message(QStringLiteral("  [OK] %1").arg(m_cli), kColorOk);
         return true;
     }
 
@@ -470,7 +470,7 @@ bool ProxyManager::find_cli(bool verbose)
         if (QFileInfo::exists(c)) {
             m_cli = QDir::toNativeSeparators(c);
             if (verbose)
-                log(QStringLiteral("  [OK] %1").arg(m_cli), kColorOk);
+                append_log_message(QStringLiteral("  [OK] %1").arg(m_cli), kColorOk);
             return true;
         }
     }
@@ -481,14 +481,14 @@ bool ProxyManager::find_cli(bool verbose)
         if (!p.isEmpty()) {
             m_cli = p;
             if (verbose)
-                log(QStringLiteral("  [OK] %1（PATH）").arg(m_cli), kColorOk);
+                append_log_message(QStringLiteral("  [OK] %1（PATH）").arg(m_cli), kColorOk);
             return true;
         }
     }
 
     if (verbose) {
-        log(QStringLiteral("  [FAIL] 找不到 opencode CLI。请用「浏览」指定路径，例如："), kColorErr);
-        log(QStringLiteral("    %LOCALAPPDATA%\\Programs\\ai.opencode.desktop\\resources\\opencode-cli.exe"),
+        append_log_message(QStringLiteral("  [FAIL] 找不到 opencode CLI。请用「浏览」指定路径，例如："), kColorErr);
+        append_log_message(QStringLiteral("    %LOCALAPPDATA%\\Programs\\ai.opencode.desktop\\resources\\opencode-cli.exe"),
             kColorDim);
     }
     return false;
@@ -510,20 +510,20 @@ bool ProxyManager::find_cli(bool verbose)
  */
 bool ProxyManager::do_detect(const QString &explicitUrl, QList<ProxyDetector::Proxy> *found)
 {
-    log(QStringLiteral("探测可用本地代理…"), kColorInfo);
+    append_log_message(QStringLiteral("探测可用本地代理…"), kColorInfo);
 
     ProxyDetector detector;
     QList<int> livePorts;
 
     if (explicitUrl.trimmed().isEmpty()) {
-        log(QStringLiteral("  扫描本机监听端口（netstat）…"), kColorDim);
-        livePorts = ProxyDetector::listening_ports();
-        log(QStringLiteral("  发现 %1 个监听端口").arg(livePorts.size()), kColorDim);
+        append_log_message(QStringLiteral("  扫描本机监听端口（netstat）…"), kColorDim);
+        livePorts = ProxyDetector::get_listening_ports();
+        append_log_message(QStringLiteral("  发现 %1 个监听端口").arg(livePorts.size()), kColorDim);
     }
 
     *found = detector.detect(explicitUrl, livePorts,
         [this](const QString &url, bool pass) {
-            log(QStringLiteral("  正在探测 %1 … %2")
+            append_log_message(QStringLiteral("  正在探测 %1 … %2")
                     .arg(ProxyDetector::mask_url(url),
                          pass ? QStringLiteral("[OK] CONNECT 隧道通过")
                               : QStringLiteral("[FAIL] 连接被拒绝")),
@@ -563,7 +563,7 @@ bool ProxyManager::apply_service_env(const QString &proxyUrl, const QString &caP
     for (const QString &key : kEnvKeys) {
         const QString value = values.value(key);
         if (dryRun) {
-            log(QStringLiteral("  [演练] service set env %1 %2")
+            append_log_message(QStringLiteral("  [演练] service set env %1 %2")
                     .arg(key, ProxyDetector::mask_url(value)),
                 kColorDim);
             report_env(key, ProxyDetector::mask_url(value), true);
@@ -577,7 +577,7 @@ bool ProxyManager::apply_service_env(const QString &proxyUrl, const QString &caP
                 60000, &code, &out);
         const bool okKey = (code == 0);
         if (!okKey) {
-            log(QStringLiteral("  [FAIL] %1 写入失败：%2")
+            append_log_message(QStringLiteral("  [FAIL] %1 写入失败：%2")
                     .arg(key, out.left(300)),
                 kColorErr);
             good = false;
@@ -589,7 +589,7 @@ bool ProxyManager::apply_service_env(const QString &proxyUrl, const QString &caP
         const QString key = QStringLiteral("NODE_EXTRA_CA_CERTS");
         const QString value = values.value(key);
         if (dryRun) {
-            log(QStringLiteral("  [演练] service set env %1 %2").arg(key, value), kColorDim);
+            append_log_message(QStringLiteral("  [演练] service set env %1 %2").arg(key, value), kColorDim);
             report_env(key, value, true);
         } else {
             int code = -1;
@@ -599,7 +599,7 @@ bool ProxyManager::apply_service_env(const QString &proxyUrl, const QString &caP
                     60000, &code, &out);
             const bool okKey = (code == 0);
             if (!okKey) {
-                log(QStringLiteral("  [FAIL] %1 写入失败：%2").arg(key, out.left(300)), kColorErr);
+                append_log_message(QStringLiteral("  [FAIL] %1 写入失败：%2").arg(key, out.left(300)), kColorErr);
                 good = false;
             }
             report_env(key, value, okKey);
@@ -770,7 +770,7 @@ bool ProxyManager::apply_user_env(const QString &proxyUrl, const QString &caPath
     for (const QString &key : keys) {
         const QString value = values.value(key);
         if (dryRun) {
-            log(QStringLiteral("  [演练] 写用户环境 %1=%2")
+            append_log_message(QStringLiteral("  [演练] 写用户环境 %1=%2")
                     .arg(key, ProxyDetector::mask_url(value)),
                 kColorDim);
             report_env(key, ProxyDetector::mask_url(value), true);
@@ -778,10 +778,10 @@ bool ProxyManager::apply_user_env(const QString &proxyUrl, const QString &caPath
         }
         const bool okKey = write_user_env(key, value);
         if (!okKey) {
-            log(QStringLiteral("  [FAIL] 写用户环境变量 %1 失败").arg(key), kColorErr);
+            append_log_message(QStringLiteral("  [FAIL] 写用户环境变量 %1 失败").arg(key), kColorErr);
             good = false;
         } else {
-            log(QStringLiteral("  [OK] HKCU\\Environment 已更新 %1").arg(key), kColorOk);
+            append_log_message(QStringLiteral("  [OK] HKCU\\Environment 已更新 %1").arg(key), kColorOk);
         }
         report_env(key, ProxyDetector::mask_url(value), okKey);
     }
@@ -804,7 +804,7 @@ bool ProxyManager::apply_user_env(const QString &proxyUrl, const QString &caPath
 bool ProxyManager::do_restart(bool dryRun)
 {
     if (dryRun) {
-        log(QStringLiteral("  [演练] service restart"), kColorDim);
+        append_log_message(QStringLiteral("  [演练] service restart"), kColorDim);
         return true;
     }
 
@@ -812,20 +812,20 @@ bool ProxyManager::do_restart(bool dryRun)
     QString out;
     run_cli(m_cli, {QStringLiteral("service"), QStringLiteral("restart")}, 120000, &code, &out);
     if (code == 0) {
-        log(QStringLiteral("  [OK] 后台服务已重启"), kColorOk);
+        append_log_message(QStringLiteral("  [OK] 后台服务已重启"), kColorOk);
         return true;
     }
 
-    log(QStringLiteral("  restart 失败，改用 stop + start"), kColorWarn);
+    append_log_message(QStringLiteral("  restart 失败，改用 stop + start"), kColorWarn);
     run_cli(m_cli, {QStringLiteral("service"), QStringLiteral("stop")}, 90000, &code, &out);
     run_cli(m_cli, {QStringLiteral("service"), QStringLiteral("start")}, 120000, &code, &out);
     if (code == 0) {
-        log(QStringLiteral("  [OK] 后台服务已启动"), kColorOk);
+        append_log_message(QStringLiteral("  [OK] 后台服务已启动"), kColorOk);
         return true;
     }
 
-    log(QStringLiteral("  [FAIL] 服务启动失败：%1").arg(out.left(400)), kColorErr);
-    log(QStringLiteral("  → 后台服务未能启动，请手动执行 opencode service start"), kColorErr);
+    append_log_message(QStringLiteral("  [FAIL] 服务启动失败：%1").arg(out.left(400)), kColorErr);
+    append_log_message(QStringLiteral("  → 后台服务未能启动，请手动执行 opencode service start"), kColorErr);
     return false;
 }
 
@@ -835,7 +835,7 @@ bool ProxyManager::do_restart(bool dryRun)
  * @brief       三层验证并逐条上报结果
  *
  * @return      none
- * @details     配置写完后按四步实测，每条结果都经 verify_result(name, ok, detail) 发回 UI：
+ * @details     配置写完后按四步实测，每条结果都经 verify_result_ready(name, ok, detail) 发回 UI：
  *              ① service get（30 秒）回读配置：退出码非 0 / 不是 JSON / env 里没有任何目标键，分别上报失败；
  *                 成功时把 KEY=VALUE 拼成一行展示（值经 mask_url 脱敏）；
  *              ② service status（30 秒）取首行地址，证明服务进程在跑；
@@ -851,7 +851,7 @@ void ProxyManager::do_verify()
     QString out;
     run_cli(m_cli, {QStringLiteral("service"), QStringLiteral("get")}, 30000, &code, &out);
     if (code != 0) {
-        emit verify_result(QStringLiteral("service get"), false, out.left(200));
+        emit verify_result_ready(QStringLiteral("service get"), false, out.left(200));
     } else {
         const QJsonDocument doc = QJsonDocument::fromJson(out.toUtf8());
         if (doc.isObject()) {
@@ -864,27 +864,27 @@ void ProxyManager::do_verify()
                 }
             }
             if (!shown.isEmpty()) {
-                emit verify_result(QStringLiteral("service get"), true, shown.join(QStringLiteral("  ")));
+                emit verify_result_ready(QStringLiteral("service get"), true, shown.join(QStringLiteral("  ")));
             } else {
-                emit verify_result(QStringLiteral("service get"), false, QStringLiteral("service env 为空"));
+                emit verify_result_ready(QStringLiteral("service get"), false, QStringLiteral("service env 为空"));
             }
         } else {
-            emit verify_result(QStringLiteral("service get"), false, QStringLiteral("回读不是 JSON"));
+            emit verify_result_ready(QStringLiteral("service get"), false, QStringLiteral("回读不是 JSON"));
         }
     }
 
     run_cli(m_cli, {QStringLiteral("service"), QStringLiteral("status")}, 30000, &code, &out);
     if (code == 0 && !out.isEmpty())
-        emit verify_result(QStringLiteral("service status"), true, out.split(QLatin1Char('\n')).first());
+        emit verify_result_ready(QStringLiteral("service status"), true, out.split(QLatin1Char('\n')).first());
     else
-        emit verify_result(QStringLiteral("service status"), false, QStringLiteral("无地址信息"));
+        emit verify_result_ready(QStringLiteral("service status"), false, QStringLiteral("无地址信息"));
 
     run_cli(m_cli, {QStringLiteral("api"), QStringLiteral("get"), QStringLiteral("/api/info")},
             45000, &code, &out);
     if (code == 0)
-        emit verify_result(QStringLiteral("CLI → 本地服务"), true, QStringLiteral("连通（NO_PROXY 生效）"));
+        emit verify_result_ready(QStringLiteral("CLI → 本地服务"), true, QStringLiteral("连通（NO_PROXY 生效）"));
     else
-        emit verify_result(QStringLiteral("CLI → 本地服务"), false,
+        emit verify_result_ready(QStringLiteral("CLI → 本地服务"), false,
                            QStringLiteral("返回 %1：%2（服务可能还没起好）").arg(code).arg(out.left(200)));
 
     run_cli(m_cli, {QStringLiteral("service"), QStringLiteral("get"), QStringLiteral("env"),
@@ -902,13 +902,13 @@ void ProxyManager::do_verify()
         bool okParse = false;
         const ProxyDetector::Proxy p = ProxyDetector::parse_url(proxyLine, &okParse);
         if (okParse && ProxyDetector::probe(p.scheme, p.host, p.port))
-            emit verify_result(QStringLiteral("出站隧道"), true,
+            emit verify_result_ready(QStringLiteral("出站隧道"), true,
                                QStringLiteral("可用：%1").arg(ProxyDetector::mask_url(p.url)));
         else
-            emit verify_result(QStringLiteral("出站隧道"), false,
+            emit verify_result_ready(QStringLiteral("出站隧道"), false,
                                QStringLiteral("不可用：%1").arg(ProxyDetector::mask_url(proxyLine)));
     } else {
-        emit verify_result(QStringLiteral("出站隧道"), false, QStringLiteral("未取到 HTTPS_PROXY"));
+        emit verify_result_ready(QStringLiteral("出站隧道"), false, QStringLiteral("未取到 HTTPS_PROXY"));
     }
 }
 
@@ -937,7 +937,7 @@ void ProxyManager::unset_all(bool restart, bool dryRun)
     m_abort.store(false);
     bool ok = true;
 
-    log(QStringLiteral("=== 撤销 OpenCode 代理设置 ==="), kColorInfo);
+    append_log_message(QStringLiteral("=== 撤销 OpenCode 代理设置 ==="), kColorInfo);
 
     if (!find_cli()) {
         m_running = false;
@@ -948,7 +948,7 @@ void ProxyManager::unset_all(bool restart, bool dryRun)
     const QStringList svcKeys = kEnvKeys + QStringList(QStringLiteral("NODE_EXTRA_CA_CERTS"));
     for (const QString &key : svcKeys) {
         if (dryRun) {
-            log(QStringLiteral("  [演练] service unset env %1").arg(key), kColorDim);
+            append_log_message(QStringLiteral("  [演练] service unset env %1").arg(key), kColorDim);
             report_env(key, QString(), true);
             continue;
         }
@@ -960,33 +960,33 @@ void ProxyManager::unset_all(bool restart, bool dryRun)
         const bool okKey = (code == 0) || out.contains(QStringLiteral("not found"), Qt::CaseInsensitive)
                            || out.contains(QStringLiteral("unknown"), Qt::CaseInsensitive);
         if (!okKey) {
-            log(QStringLiteral("  [WARN] %1 撤销返回 %2：%3").arg(key).arg(code).arg(out.left(200)),
+            append_log_message(QStringLiteral("  [WARN] %1 撤销返回 %2：%3").arg(key).arg(code).arg(out.left(200)),
                 kColorWarn);
             ok = false;
         }
         report_env(key, QString(), okKey);
     }
 
-    log(QStringLiteral("=== 清理用户环境变量 ==="), kColorInfo);
+    append_log_message(QStringLiteral("=== 清理用户环境变量 ==="), kColorInfo);
     const QStringList userKeys = kAllEnvKeys + QStringList(QStringLiteral("NODE_EXTRA_CA_CERTS"));
     for (const QString &key : userKeys) {
         if (dryRun) {
-            log(QStringLiteral("  [演练] 删除用户环境 %1").arg(key), kColorDim);
+            append_log_message(QStringLiteral("  [演练] 删除用户环境 %1").arg(key), kColorDim);
             continue;
         }
         if (delete_user_env(key))
-            log(QStringLiteral("  [OK] 已删除用户环境 %1").arg(key), kColorOk);
+            append_log_message(QStringLiteral("  [OK] 已删除用户环境 %1").arg(key), kColorOk);
     }
-    log(QStringLiteral("  用户环境变量已清理（已开着的终端/应用需重开）"), kColorDim);
+    append_log_message(QStringLiteral("  用户环境变量已清理（已开着的终端/应用需重开）"), kColorDim);
 
     if (restart) {
-        log(QStringLiteral("=== 重启后台服务 ==="), kColorInfo);
+        append_log_message(QStringLiteral("=== 重启后台服务 ==="), kColorInfo);
         if (!do_restart(dryRun))
             ok = false;
     }
 
-    log(QStringLiteral("=== 完成 ==="), kColorInfo);
-    log(QStringLiteral("  OpenCode 已恢复直连。若桌面版仍在跑，重启一次桌面版更稳妥。"), kColorInfo);
+    append_log_message(QStringLiteral("=== 完成 ==="), kColorInfo);
+    append_log_message(QStringLiteral("  OpenCode 已恢复直连。若桌面版仍在跑，重启一次桌面版更稳妥。"), kColorInfo);
 
     m_running = false;
     emit finished(ok);

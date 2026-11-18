@@ -1,5 +1,5 @@
 /**
- * @file        helpdialog.cpp
+ * @file        help_dialog.cpp
  * @brief       「使用说明」对话框实现：富文本展示作用、按钮、参数与状态指示
  * @author      lch (fantasylch@foxmail.com)
  * @version     1.0
@@ -15,7 +15,7 @@
  * </table>
  */
 
-#include "helpdialog.h"
+#include "help_dialog.h"
 
 #include <QPushButton>
 #include <QTextBrowser>

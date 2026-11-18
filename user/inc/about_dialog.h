@@ -1,5 +1,5 @@
 /**
- * @file aboutdialog.h
+ * @file about_dialog.h
  * @brief 「关于」对话框声明
  */
 
@@ -14,7 +14,7 @@ class AboutDialog : public QDialog
     Q_OBJECT
 
 public:
-    /// @brief 构造函数：按 appinfo.h 的宏组装品牌信息
+    /// @brief 构造函数：按 app_info.h 的宏组装品牌信息
     explicit AboutDialog(QWidget *parent = nullptr);
 };
 

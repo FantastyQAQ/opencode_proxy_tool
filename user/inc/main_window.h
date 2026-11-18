@@ -1,5 +1,5 @@
 /**
- * @file mainwindow.h
+ * @file main_window.h
  * @brief 主窗口声明：工具栏 + 表单 + 状态表格/日志分栏 + 图例 + 状态栏
  */
 
@@ -9,7 +9,7 @@
 #include <QColor>
 #include <QMainWindow>
 
-#include "proxymanager.h"
+#include "proxy_manager.h"
 
 class QCheckBox;
 class QCloseEvent;
@@ -28,7 +28,9 @@ class QThread;
 class QVBoxLayout;
 class QWidget;
 
-/// @brief 主窗口：驱动 ProxyManager，展示配置项状态表格与彩色日志（实现见 mainwindow.cpp）
+class UpdateNotesDialog;
+
+/// @brief 主窗口：驱动 ProxyManager，展示配置项状态表格与彩色日志（实现见 main_window.cpp）
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -65,7 +67,7 @@ private slots:
     /// @brief 接收工作线程日志并落到日志面板
     void on_log(const QString &text, const QColor &color);
     /// @brief 展示探测到的可用代理（首个为选用项）
-    void on_detected(const QList<ProxyDetector::Proxy> &proxies);
+    void on_proxy_detected(const QList<ProxyDetector::Proxy> &proxies);
     /// @brief 展示单个配置项的写入结果
     void on_env_state(const QString &key, const QString &value, bool ok);
     /// @brief 展示单条验证结果
@@ -73,7 +75,7 @@ private slots:
     /// @brief 流水线结束的统一收尾（更新指示、计时与摘要）
     void on_finished(bool ok);
     /// @brief 更新右下角「转发已配置/未配置」指示
-    void on_proxy_state(bool configured);
+    void on_proxy_state_changed(bool configured);
     /// @brief 定时器回调：每秒刷新一次运行时长
     void on_run_timer();
 
@@ -136,6 +138,7 @@ private:
     QLabel *m_runTimeLabel = nullptr;    ///< 右下角「已运行 HH:MM:SS」时长
     QTimer *m_runTimer = nullptr;        ///< 运行时长刷新定时器（1 秒一跳）
     QElapsedTimer *m_runElapsed = nullptr; ///< 运行时长起算时刻
+    UpdateNotesDialog *m_updateNotesWnd = nullptr; ///< 「更新说明」非模态窗口（关闭后置空）
     bool m_counting = false;             ///< 是否正在计时（配置成功且未撤销）
     bool m_lastDryRun = false;           ///< 最近一次「开始配置/撤销」是否仅演练
 

@@ -1,5 +1,5 @@
 /**
- * @file proxydetector.h
+ * @file proxy_detector.h
  * @brief 代理探测器声明：HTTP/SOCKS5 隧道探测、监听端口解析、候选代理发现
  */
 
@@ -13,7 +13,7 @@
 
 #include <functional>
 
-/// @brief 代理探测器：判断本地代理「真的能用」而不是端口开着就算（实现见 proxydetector.cpp）
+/// @brief 代理探测器：判断本地代理「真的能用」而不是端口开着就算（实现见 proxy_detector.cpp）
 class ProxyDetector : public QObject
 {
     Q_OBJECT
@@ -40,7 +40,7 @@ public:
                        int timeoutMs = 5000);
 
     /// @brief 列出正在监听的本机回环端口（阻塞，netstat -ano -p TCP）
-    static QList<int> listening_ports(int timeoutMs = 20000);
+    static QList<int> get_listening_ports(int timeoutMs = 20000);
 
     /// @brief 把 URL 里的用户凭据替换为 ***（日志/表格展示用）
     static QString mask_url(const QString &url);

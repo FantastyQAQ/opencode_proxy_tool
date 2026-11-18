@@ -24,6 +24,8 @@
 - **函数内部注释要充分**：函数体内要有足够详细的注释，描述实现逻辑和各段代码的具体功能；关键分支、状态切换、边界处理等位置必须有注释说明。**不允许出现大段代码没有一句注释的情况。**
 - **源文件（.c/.cpp 等）中的注释要详细**：函数定义和重要代码定义处，须以注释块详细描述其功能、设计目标、适用场景、注意事项（如调用时机、线程/中断上下文限制、参数取值范围、副作用等）。**源文件的注释必须使用 `doxygen-comment` 技能生成/维护**（Doxygen 风格），不要手工随意编写。
 - **头文件（.h 等）中的注释要简略**：头文件中的函数声明不需要大段说明，以单行简略注释为主，说清"这个函数是做什么的"即可，详细说明留在源文件中。
+- **函数命名统一 snake_case**：函数名全小写、用下划线分隔、以"动词 + 名词"结构命名（如 `scan_repos`、`append_log`、`run_git`）；判断类函数用 `check_` 前缀（如 `check_github_repo`），返回 bool 不用 `is_` 开头；取单个值/状态的访问函数用 `get_` 前缀（如 `get_options`、`get_cache_path`）；Qt 信号命名同样遵循 snake_case + 动宾结构（如 `log_message`、`progress_changed`）；槽函数用 `on_` 前缀（如 `on_scan`、`on_pull_all`）。禁止在函数命名中使用 camelCase / PascalCase；Qt 虚函数重写保持基类名不变；成员变量仍用 `m_` 前缀，类型与常量命名不受此条约束。
+- **源码文件命名同样统一 snake_case**：文件名全小写、下划线分隔（如 `key_manager.c`、`app_config.h`），禁止 camelCase / PascalCase 的文件名（如 `keyManager.c`、`AppConfig.h`）；新增文件同样按此命名。
 
 ## 行为准则
 
@@ -151,11 +153,11 @@ OpenCode 代理配置工具（`SV01.001`）：Qt Widgets C++17 桌面程序，�
 - 已知坑：
   - exe 正在运行时链接失败 `cannot open output file release/opencode_proxy_tool.exe: Permission denied`，先退出程序再 make。
   - qmake 生成的规则只让资源对象依赖 `.rc`，换 `icon/app_256.ico` 不会触发重链；`.pro` 里用 `PRE_TARGETDEPS += icon/app_256.ico` 补上。
-  - 版本号只改 `user/inc/appinfo.h` 即可：`.pro` 的 `QMAKE_PRE_LINK` 每次链接前重跑 windres，VERSIONINFO 不会滞后。
+  - 版本号只改 `user/inc/app_info.h` 即可：`.pro` 的 `QMAKE_PRE_LINK` 每次链接前重跑 windres，VERSIONINFO 不会滞后。
 
 ### 版本号维护（只在发布时升版）
 
-`user/inc/appinfo.h` 里三个宏的职责与更新时机不同，不要一改代码就无脑升版：
+`user/inc/app_info.h` 里三个宏的职责与更新时机不同，不要一改代码就无脑升版：
 
 - `APP_VERSION`：显示版本号 `SV01.NNN`。**只在发布版本时**递增末三位（如 `SV01.001` → `SV01.002`）。
 - `APP_VERSION_NUM`：数字版本号，必须与 `APP_VERSION` 末三位一一对应（`SV01.002` → `1,0,0,2`），与 `APP_VERSION` 同时改。
@@ -177,24 +179,24 @@ OpenCode 代理配置工具（`SV01.001`）：Qt Widgets C++17 桌面程序，�
 - `release/`：构建产物、中间 `.o` / `moc_*` 文件与运行依赖 DLL
 - 根目录：`README.md` 工程介绍（中英双语）、`LICENSE` MIT 许可、`.pro` 构建脚本、`.rc` 资源脚本、`app.manifest` 进程清单
 
-模块划分：`mainwindow`（界面 + 日志面板）、`proxymanager`（工作线程编排主流程）、`proxydetector`（代理真实可用性判定，CONNECT 隧道握手）、`aboutdialog`（关于框）、`appinfo`（元信息宏）。
+模块划分：`main_window`（界面 + 日志面板）、`proxy_manager`（工作线程编排主流程）、`proxy_detector`（代理真实可用性判定，CONNECT 隧道握手）、`about_dialog`（关于框）、`app_info`（元信息宏）。
 
 ### 关键文件
 
 - [opencode_proxy_tool.pro](file:///E:/code/qt/opencode_proxy_tool/opencode_proxy_tool.pro)：唯一构建脚本，目录约定、图标资源、版本资源重建都在这里
-- [user/inc/appinfo.h](file:///E:/code/qt/opencode_proxy_tool/user/inc/appinfo.h)：应用名 / 版本 / 作者集中定义，窗口标题、关于框、VERSIONINFO 共用；`APP_VERSION` 与 `APP_VERSION_NUM` 末三位须一一对应
+- [user/inc/app_info.h](file:///E:/code/qt/opencode_proxy_tool/user/inc/app_info.h)：应用名 / 版本 / 作者集中定义，窗口标题、关于框、VERSIONINFO 共用；`APP_VERSION` 与 `APP_VERSION_NUM` 末三位须一一对应
 - [opencode_proxy_tool_resource.rc](file:///E:/code/qt/opencode_proxy_tool/opencode_proxy_tool_resource.rc)：图标资源 `IDI_ICON1`、清单（资源类型 24、ID 必须为 1）、版本信息块
 - [app.manifest](file:///E:/code/qt/opencode_proxy_tool/app.manifest)：声明 `requestedExecutionLevel="asInvoker"`，关闭 Windows「安装程序检测」，避免退出时弹程序兼容性助手
-- [user/src/proxymanager.cpp](file:///E:/code/qt/opencode_proxy_tool/user/src/proxymanager.cpp)：主流程（定位 CLI → 探测 → 写环境变量 → 重启 → 验证）
-- [user/src/proxydetector.cpp](file:///E:/code/qt/opencode_proxy_tool/user/src/proxydetector.cpp)：候选代理发现与连通性判定
+- [user/src/proxy_manager.cpp](file:///E:/code/qt/opencode_proxy_tool/user/src/proxy_manager.cpp)：主流程（定位 CLI → 探测 → 写环境变量 → 重启 → 验证）
+- [user/src/proxy_detector.cpp](file:///E:/code/qt/opencode_proxy_tool/user/src/proxy_detector.cpp)：候选代理发现与连通性判定
 - [README.md](file:///E:/code/qt/opencode_proxy_tool/README.md)：工程介绍——原理、界面、GUI 与 Python 脚本参数对应关系、验证内容、日志脱敏、构建运行；中英双语，改功能后两半同步改
-- [LICENSE](file:///E:/code/qt/opencode_proxy_tool/LICENSE)：MIT 许可，版权行 `Copyright (c) 2026 lch` 与 `user/inc/appinfo.h` 的 `APP_AUTHOR_NAME` / `APP_COPYRIGHT_YEAR` 保持一致
-- [docs/README.zh_CN.md](file:///E:/code/qt/opencode_proxy_tool/docs/README.zh_CN.md)：只放更新记录，不写工程介绍
+- [LICENSE](file:///E:/code/qt/opencode_proxy_tool/LICENSE)：MIT 许可，版权行 `Copyright (c) 2026 lch` 与 `user/inc/app_info.h` 的 `APP_AUTHOR_NAME` / `APP_COPYRIGHT_YEAR` 保持一致
+- [docs/README.zh_CN.md](file:///E:/code/qt/opencode_proxy_tool/docs/README.zh_CN.md)：工程说明（定位与主要功能）+ 完整更新记录，说明在前、记录在后
 
 ### 文档布局
 
 - 工程介绍：根目录 `README.md`（中英双语，唯一入口）
-- 开源许可：根目录 `LICENSE`（MIT），改作者或版权年份时同步 `appinfo.h`
-- 更新记录：`docs/README.zh_CN.md`，按周分组 `## YYYYMM(DD-DD)` 标题 + `N.   增加/修改 : 说明;` 条目，追加不改动历史
+- 开源许可：根目录 `LICENSE`（MIT），改作者或版权年份时同步 `app_info.h`
+- 更新记录：`docs/README.zh_CN.md`，文件结构为「工程说明 + `# 更新记录` + 按周分组 `## YYYYMM(DD-DD)` 标题 + `N.   增加/修改 : 说明;` 条目」，追加不改动历史
 - 实现方案：`docs/implementation_plan.md`
 - 构建与工具链约定：本文件「构建与测试」一节

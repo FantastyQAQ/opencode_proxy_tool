@@ -1,5 +1,5 @@
 /**
- * @file helpdialog.h
+ * @file help_dialog.h
  * @brief 「使用说明」对话框声明
  */
 

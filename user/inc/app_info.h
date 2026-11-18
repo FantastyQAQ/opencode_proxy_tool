@@ -1,5 +1,5 @@
 /**
- * @file appinfo.h
+ * @file app_info.h
  * @brief 应用元信息集中定义：工具名 / 版本号 / 作者 / 邮箱 / 构建日期
  *
  * 这些宏被主窗口标题、「关于」对话框与 Windows VERSIONINFO 资源共同引用，

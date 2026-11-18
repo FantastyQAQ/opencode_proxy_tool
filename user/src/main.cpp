@@ -4,7 +4,7 @@
  * @author      lch (fantasylch@foxmail.com)
  * @version     1.0
  * @date        20261110
- * @note        qRegisterMetaType 必须在 MainWindow 构造前完成，否则工作线程的 detected() 队列投递会失败。
+ * @note        qRegisterMetaType 必须在 MainWindow 构造前完成，否则工作线程的 proxy_detected() 队列投递会失败。
  *
  * @copyright   Copyright (c) 2026 by lch, All Rights Reserved.
  *
@@ -15,8 +15,8 @@
  * </table>
  */
 
-#include "mainwindow.h"
-#include "proxydetector.h"
+#include "main_window.h"
+#include "proxy_detector.h"
 
 #include <QApplication>
 
@@ -29,7 +29,7 @@
  * @details     启动顺序有依赖，不能随意调换：
  *              ① setStyle(QStringLiteral("Fusion")) 统一各 Windows 主题下的控件绘制，界面配色才可预期；
  *              ② qRegisterMetaType<QList<ProxyDetector::Proxy>> 必须在 MainWindow 构造前完成——
- *                 ProxyManager 在工作线程发出的 detected() 经队列连接投递时要靠它还原类型，
+ *                 ProxyManager 在工作线程发出的 proxy_detected() 经队列连接投递时要靠它还原类型，
  *                 未注册会导致该信号被丢弃；
  *              ③ 主窗口建在栈上，show() 后进入事件循环，退出码直接返回给系统。
  * @doxygen_sig_fp f4b9f73e14950a17
