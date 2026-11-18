@@ -26,10 +26,10 @@
 
 namespace {
 /**
- * @brief       常见本地代理端口（与原脚本 COMMON_PORTS 一致）
+ * @brief       常见本地代理端口（17890 为本地优先探测项，其余与原脚本 COMMON_PORTS 一致）
  *
  */
-const QList<int> kCommonPorts = {7890, 7897, 7891, 10809, 10808, 1080, 1087, 8889,
+const QList<int> kCommonPorts = {17890, 7890, 7897, 7891, 10809, 10808, 1080, 1087, 8889,
                                  8080, 8888, 20171, 2080, 4780, 6152, 7892, 10801, 8118};
 const char kProbeHost[] = "www.gstatic.com";  ///< 探测目标主机
 const quint16 kProbePort = 443;  ///< 探测目标端口

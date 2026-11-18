@@ -58,10 +58,10 @@ const QColor kColorErr(Qt::red);  ///< 错误红
 const QColor kColorDim(0x8a, 0x93, 0xa3);  ///< 弱化灰
 
 /**
- * @brief       常见代理端口（下拉框用，顺序同原脚本 COMMON_PORTS）
+ * @brief       常见代理端口（下拉框用，17890 为本地优先项，其余顺序同原脚本 COMMON_PORTS）
  *
  */
-const QList<int> kPortPresets = {7890, 7897, 7891, 10809, 10808, 1080, 1087, 8889,
+const QList<int> kPortPresets = {17890, 7890, 7897, 7891, 10809, 10808, 1080, 1087, 8889,
                                  8080, 8888, 20171, 2080, 4780, 6152, 7892, 10801, 8118};
 } // namespace
 
