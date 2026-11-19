@@ -26,7 +26,12 @@ SOURCES += \
     user/src/proxy_detector.cpp \
     user/src/about_dialog.cpp \
     user/src/help_dialog.cpp \
-    user/src/update_notes_dialog.cpp
+    user/src/update_notes_dialog.cpp \
+    user/src/online_update_dialog.cpp \
+    user/src/update_manifest.cpp \
+    user/src/update_verifier.cpp \
+    user/src/update_downloader.cpp \
+    user/src/update_applier.cpp
 
 HEADERS += \
     user/inc/main_window.h \
@@ -35,7 +40,13 @@ HEADERS += \
     user/inc/about_dialog.h \
     user/inc/help_dialog.h \
     user/inc/update_notes_dialog.h \
-    user/inc/app_info.h
+    user/inc/app_info.h \
+    user/inc/online_update_dialog.h \
+    user/inc/update_config.h \
+    user/inc/update_manifest.h \
+    user/inc/update_verifier.h \
+    user/inc/update_downloader.h \
+    user/inc/update_applier.h
 
 # 头文件搜索路径（main.cpp 中 #include "main_window.h" 依赖此配置）
 INCLUDEPATH += user/inc
@@ -63,3 +74,6 @@ QMAKE_PRE_LINK += $$QMAKE_RC -i $$RC_FILE -o $(RES_FILE) --include-dir=$$PWD --i
 
 # 写注册表 HKCU\Environment（advapi32）+ 广播 WM_SETTINGCHANGE（user32）
 LIBS += -ladvapi32 -luser32
+
+# Windows CNG（bcrypt）：在线更新的清单 RSA 验签依赖它，无需引入 OpenSSL
+LIBS += -lbcrypt

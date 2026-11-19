@@ -17,6 +17,7 @@
 
 #include "main_window.h"
 #include "proxy_detector.h"
+#include "update_applier.h"
 
 #include <QApplication>
 
@@ -40,6 +41,9 @@ int main(int argc, char *argv[])
     a.setStyle(QStringLiteral("Fusion"));
 
     qRegisterMetaType<QList<ProxyDetector::Proxy>>("QList<ProxyDetector::Proxy>");
+
+    // 在建窗口之前清理上次在线更新留下的 .old / .new 残留文件
+    UpdateApplier::cleanup_leftovers();
 
     MainWindow w;
     w.show();

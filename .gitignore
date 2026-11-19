@@ -34,3 +34,16 @@ desktop.ini
 .DS_Store
 *.swp
 *~
+
+# ---- 发布密钥（私钥不得入库）----
+# update_keys/ 存放在线更新清单签名用的 RSA 密钥对，私钥泄露等于他人可推送任意更新，整目录排除
+update_keys/
+
+# online update release manifests
+/publish_info/
+
+# packaged release exes (large binaries, not source)
+/pack/*.exe
+
+# bundled Qt runtime for EVB packaging
+/pack/app_32/

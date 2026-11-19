@@ -46,6 +46,7 @@
 #include "about_dialog.h"
 #include "app_info.h"
 #include "help_dialog.h"
+#include "online_update_dialog.h"
 #include "proxy_detector.h"
 #include "update_notes_dialog.h"
 
@@ -338,6 +339,15 @@ void MainWindow::setup_tool_bar()
     connect(updatesBtn, &QPushButton::clicked, this, &MainWindow::on_updates);
     bar->addWidget(updatesBtn);
 
+    auto *onlineUpdateBtn = new QPushButton(QStringLiteral("在线更新"));
+    onlineUpdateBtn->setCursor(Qt::PointingHandCursor);
+    // 橙色系：与「说明/更新说明/关于」的蓝绿区分开，提示这是一条会改动程序本体的通道
+    onlineUpdateBtn->setStyleSheet(QStringLiteral(
+        "QPushButton { background: #fff4e0; border-color: #f5d9a8; color: #b36b00; }"
+        "QPushButton:hover { background: #ffe9c2; border-color: #e8b766; }"));
+    connect(onlineUpdateBtn, &QPushButton::clicked, this, &MainWindow::on_online_update);
+    bar->addWidget(onlineUpdateBtn);
+
     auto *aboutBtn = new QPushButton(QStringLiteral("关于"));
     aboutBtn->setCursor(Qt::PointingHandCursor);
     aboutBtn->setStyleSheet(lightBlue);
@@ -360,6 +370,7 @@ void MainWindow::setup_tool_bar()
     for (auto *w : {static_cast<QWidget *>(m_startBtn), static_cast<QWidget *>(m_probeBtn),
                     static_cast<QWidget *>(m_unsetBtn), static_cast<QWidget *>(m_stopBtn),
                     static_cast<QWidget *>(helpBtn), static_cast<QWidget *>(updatesBtn),
+                    static_cast<QWidget *>(onlineUpdateBtn),
                     static_cast<QWidget *>(aboutBtn), static_cast<QWidget *>(exitBtn)})
         w->setFont(f);
 }
@@ -982,6 +993,22 @@ void MainWindow::on_updates()
     m_updateNotesWnd->show();
     m_updateNotesWnd->raise();
     m_updateNotesWnd->activateWindow();
+}
+
+/**
+ * @brief       弹出「在线更新」窗口
+ *
+ * @return      none
+ * @details     以模态方式打开 OnlineUpdateDialog，阻塞到用户关闭窗口后返回；忙判定回调读取 m_busy（UI 线程），
+ *              代理流水线（开始配置 / 仅探测 / 撤销）进行中时，窗口在下载前与启动新版前都会拒绝继续，
+ *              避免新版本在写环境变量或重启后台服务途中切换。
+ * @doxygen_sig_fp d9a8748ef6d15878
+ */
+void MainWindow::on_online_update()
+{
+    // 忙判定读 m_busy：代理流水线（开始配置 / 仅探测 / 撤销）在跑时，窗口拒绝下载与切换版本
+    OnlineUpdateDialog dlg([this]() { return m_busy; }, this);
+    dlg.exec();
 }
 
 /**

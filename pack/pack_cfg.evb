@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="windows-1252"?>
 <>
   <InputFile>E:\code\qt\opencode_proxy_tool\release\opencode_proxy_tool.exe</InputFile>
-  <OutputFile>E:\code\qt\opencode_proxy_tool\pack\opencode_proxy_tool_SV01.002.exe</OutputFile>
+  <OutputFile>E:\code\qt\opencode_proxy_tool\pack\opencode_proxy_tool_SV01.003.exe</OutputFile>
   <Files>
     <Enabled>True</Enabled>
     <DeleteExtractedOnExit>False</DeleteExtractedOnExit>

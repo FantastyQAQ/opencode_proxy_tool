@@ -60,6 +60,8 @@ private slots:
     void on_help();
     /// @brief 弹出「更新说明」对话框
     void on_updates();
+    /// @brief 弹出「在线更新」窗口
+    void on_online_update();
     /// @brief 关闭主窗口
     void on_exit();
 
