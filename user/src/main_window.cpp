@@ -335,7 +335,9 @@ void MainWindow::setup_tool_bar()
 
     auto *updatesBtn = new QPushButton(QStringLiteral("更新说明"));
     updatesBtn->setCursor(Qt::PointingHandCursor);
-    updatesBtn->setStyleSheet(lightBlue);
+    updatesBtn->setStyleSheet(QStringLiteral(
+        "QPushButton { background: #e9f7ef; border-color: #c2e6d1; color: #1d7a45; }"
+        "QPushButton:hover { background: #d4f0de; border-color: #82d19f; }"));
     connect(updatesBtn, &QPushButton::clicked, this, &MainWindow::on_updates);
     bar->addWidget(updatesBtn);
 
